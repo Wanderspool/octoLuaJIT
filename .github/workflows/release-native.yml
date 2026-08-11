@@ -103,6 +103,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Build macOS arm64
+        run: |
+          make clean
+          make -j3 amalg TARGET_FLAGS="-arch arm64" HOST_CC="gcc -arch arm64" TARGET_SYS=Darwin
+          mkdir -p dist/darwin-arm64
+          cp src/libluajit.a dist/darwin-arm64/libluajit-5.1.a
+
       - name: Build macOS amd64
         run: |
           make clean
@@ -110,7 +117,8 @@ jobs:
           mkdir -p dist/darwin-amd64
           cp src/libluajit.a dist/darwin-amd64/libluajit-5.1.a
 
-          # universal
+      - name: Create Universal Binary
+        run: |
           mkdir -p dist/darwin-universal
           lipo -create -output dist/darwin-universal/libluajit-5.1.a dist/darwin-amd64/libluajit-5.1.a dist/darwin-arm64/libluajit-5.1.a
 
@@ -174,7 +182,7 @@ jobs:
         run: |
           SDKPATH=$(xcrun --sdk iphoneos --show-sdk-path)
           make clean
-          make -j3 amalg HOST_CC="gcc" TARGET_SYS=iOS CC="clang -arch arm64 -isysroot $SDKPATH"
+          make -j3 amalg HOST_CC="gcc" TARGET_SYS=iOS CC="clang -target arm64-apple-ios11.0 -isysroot $SDKPATH"
           mkdir -p dist/ios-arm64
           cp src/libluajit.a dist/ios-arm64/libluajit-5.1.a
 
@@ -182,7 +190,7 @@ jobs:
         run: |
           SDKPATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
           make clean
-          make -j3 amalg HOST_CC="gcc" TARGET_SYS=iOS CC="clang -arch x86_64 -isysroot $SDKPATH"
+          make -j3 amalg HOST_CC="gcc" TARGET_SYS=iOS CC="clang -target x86_64-apple-ios11.0-simulator -isysroot $SDKPATH"
           mkdir -p dist/ios-amd64
           cp src/libluajit.a dist/ios-amd64/libluajit-5.1.a
 
