@@ -1,0 +1,228 @@
+name: Build and Release LuaJIT
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'luajit-v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag'
+        required: true
+        default: 'v2.1.0-octopus'
+      dry_run:
+        description: 'Build everything but do not create a release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build Linux amd64
+        run: |
+          make clean
+          make -j$(nproc) amalg
+          mkdir -p dist/linux-amd64
+          cp src/libluajit.a dist/linux-amd64/libluajit-5.1.a
+
+      - name: Build Linux arm64
+        run: |
+          make clean
+          make -j$(nproc) amalg HOST_CC="gcc" CROSS=aarch64-linux-gnu- TARGET_SYS=Linux
+          mkdir -p dist/linux-arm64
+          cp src/libluajit.a dist/linux-arm64/libluajit-5.1.a
+
+      - name: Package
+        run: |
+          tar -czf luajit-octopus-linux-amd64.tar.gz -C dist/linux-amd64 libluajit-5.1.a
+          tar -czf luajit-octopus-linux-arm64.tar.gz -C dist/linux-arm64 libluajit-5.1.a
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: luajit-octopus-linux-*.tar.gz
+
+  build-windows:
+    name: Build Windows
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install MinGW cross compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 gcc-mingw-w64-aarch64
+
+      - name: Build Windows amd64
+        run: |
+          make clean
+          make -j$(nproc) amalg HOST_CC="gcc" CROSS=x86_64-w64-mingw32- TARGET_SYS=Windows
+          mkdir -p dist/windows-amd64
+          cp src/libluajit.a dist/windows-amd64/libluajit-5.1.a
+
+      - name: Build Windows arm64
+        run: |
+          make clean
+          make -j$(nproc) amalg HOST_CC="gcc" CROSS=aarch64-w64-mingw32- TARGET_SYS=Windows
+          mkdir -p dist/windows-arm64
+          cp src/libluajit.a dist/windows-arm64/libluajit-5.1.a
+
+      - name: Package
+        run: |
+          cd dist/windows-amd64 && zip -q ../../luajit-octopus-windows-amd64.zip libluajit-5.1.a
+          cd ../../
+          cd dist/windows-arm64 && zip -q ../../luajit-octopus-windows-arm64.zip libluajit-5.1.a
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: luajit-octopus-windows-*.zip
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build macOS amd64
+        run: |
+          make clean
+          make -j3 amalg TARGET_FLAGS="-arch x86_64" HOST_CC="gcc -arch x86_64" TARGET_SYS=Darwin
+          mkdir -p dist/darwin-amd64
+          cp src/libluajit.a dist/darwin-amd64/libluajit-5.1.a
+
+      - name: Build macOS arm64
+        run: |
+          make clean
+          make -j3 amalg TARGET_FLAGS="-arch arm64" HOST_CC="gcc -arch arm64" TARGET_SYS=Darwin
+          mkdir -p dist/darwin-arm64
+          cp src/libluajit.a dist/darwin-arm64/libluajit-5.1.a
+
+      - name: Create Universal Library
+        run: |
+          mkdir -p dist/darwin-universal
+          lipo -create -output dist/darwin-universal/libluajit-5.1.a dist/darwin-amd64/libluajit-5.1.a dist/darwin-arm64/libluajit-5.1.a
+
+      - name: Package
+        run: |
+          tar -czf luajit-octopus-darwin-amd64.tar.gz -C dist/darwin-amd64 libluajit-5.1.a
+          tar -czf luajit-octopus-darwin-arm64.tar.gz -C dist/darwin-arm64 libluajit-5.1.a
+          tar -czf luajit-octopus-darwin-universal.tar.gz -C dist/darwin-universal libluajit-5.1.a
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-artifacts
+          path: luajit-octopus-darwin-*.tar.gz
+
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up NDK
+        run: |
+          if [ -z "${ANDROID_NDK_ROOT:-}" ]; then
+            echo "ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          fi
+
+      - name: Build Android arm64
+        run: |
+          NDKBIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
+          make clean
+          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android CC="$NDKBIN/aarch64-linux-android31-clang" CROSS="$NDKBIN/llvm-"
+          mkdir -p dist/android-arm64
+          cp src/libluajit.a dist/android-arm64/libluajit-5.1.a
+
+      - name: Build Android x86_64
+        run: |
+          NDKBIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
+          make clean
+          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android CC="$NDKBIN/x86_64-linux-android31-clang" CROSS="$NDKBIN/llvm-"
+          mkdir -p dist/android-amd64
+          cp src/libluajit.a dist/android-amd64/libluajit-5.1.a
+
+      - name: Package
+        run: |
+          cd dist/android-amd64 && zip -q ../../luajit-octopus-android-amd64.zip libluajit-5.1.a
+          cd ../../
+          cd dist/android-arm64 && zip -q ../../luajit-octopus-android-arm64.zip libluajit-5.1.a
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-artifacts
+          path: luajit-octopus-android-*.zip
+
+  build-ios:
+    name: Build iOS
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build iOS arm64
+        run: |
+          SDKPATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          make clean
+          make -j3 amalg HOST_CC="gcc" TARGET_SYS=iOS CC="clang -arch arm64 -isysroot $SDKPATH"
+          mkdir -p dist/ios-arm64
+          cp src/libluajit.a dist/ios-arm64/libluajit-5.1.a
+
+      - name: Build iOS x86_64 Simulator
+        run: |
+          SDKPATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          make clean
+          make -j3 amalg HOST_CC="gcc" TARGET_SYS=iOS CC="clang -arch x86_64 -isysroot $SDKPATH"
+          mkdir -p dist/ios-amd64
+          cp src/libluajit.a dist/ios-amd64/libluajit-5.1.a
+
+      - name: Package
+        run: |
+          cd dist/ios-amd64 && zip -q ../../luajit-octopus-ios-amd64.zip libluajit-5.1.a
+          cd ../../
+          cd dist/ios-arm64 && zip -q ../../luajit-octopus-ios-arm64.zip libluajit-5.1.a
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-artifacts
+          path: luajit-octopus-ios-*.zip
+
+  publish:
+    name: Publish draft release
+    runs-on: ubuntu-24.04
+    needs: [build-linux, build-windows, build-macos, build-android, build-ios]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect and verify
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release/ \;
+          cd release && sha256sum * > SHA256SUMS && cat SHA256SUMS
+
+      - name: Create draft release
+        if: ${{ github.event_name == 'push' || !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          draft: true
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag_name }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
