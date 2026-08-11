@@ -59,14 +59,16 @@ jobs:
           path: luajit-octopus-linux-*.tar.gz
 
   build-windows:
-    name: Build Windows
+    name: Build Windows (${{ matrix.arch }}, ${{ matrix.out }})
     runs-on: windows-2022
     strategy:
       matrix:
         include:
           - arch: x64
+            msvc_arch: x64
             out: windows-amd64
           - arch: arm64
+            msvc_arch: x64_arm64
             out: windows-arm64
     steps:
       - uses: actions/checkout@v6
@@ -74,7 +76,7 @@ jobs:
       - name: Set up MSVC Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: ${{ matrix.arch }}
+          arch: ${{ matrix.msvc_arch }}
 
       - name: Build
         shell: cmd
@@ -108,13 +110,6 @@ jobs:
           mkdir -p dist/darwin-amd64
           cp src/libluajit.a dist/darwin-amd64/libluajit-5.1.a
 
-      - name: Build macOS arm64
-        run: |
-          make clean
-          make -j3 amalg TARGET_FLAGS="-arch arm64" HOST_CC="gcc -arch arm64" TARGET_SYS=Darwin
-          mkdir -p dist/darwin-arm64
-          cp src/libluajit.a dist/darwin-arm64/libluajit-5.1.a
-
           # universal
           mkdir -p dist/darwin-universal
           lipo -create -output dist/darwin-universal/libluajit-5.1.a dist/darwin-amd64/libluajit-5.1.a dist/darwin-arm64/libluajit-5.1.a
@@ -146,7 +141,7 @@ jobs:
         run: |
           NDKBIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
           make clean
-          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android TARGET_CC="$NDKBIN/aarch64-linux-android31-clang" TARGET_AR="$NDKBIN/llvm-ar" TARGET_STRIP="$NDKBIN/llvm-strip"
+          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android TARGET_CC="$NDKBIN/aarch64-linux-android31-clang" TARGET_AS="$NDKBIN/aarch64-linux-android31-clang -c" TARGET_AR="$NDKBIN/llvm-ar rcus" TARGET_STRIP="$NDKBIN/llvm-strip"
           mkdir -p dist/android-arm64
           cp src/libluajit.a dist/android-arm64/libluajit-5.1.a
 
@@ -154,7 +149,7 @@ jobs:
         run: |
           NDKBIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
           make clean
-          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android TARGET_CC="$NDKBIN/x86_64-linux-android31-clang" TARGET_AR="$NDKBIN/llvm-ar" TARGET_STRIP="$NDKBIN/llvm-strip"
+          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android TARGET_CC="$NDKBIN/x86_64-linux-android31-clang" TARGET_AS="$NDKBIN/x86_64-linux-android31-clang -c" TARGET_AR="$NDKBIN/llvm-ar rcus" TARGET_STRIP="$NDKBIN/llvm-strip"
           mkdir -p dist/android-amd64
           cp src/libluajit.a dist/android-amd64/libluajit-5.1.a
 
