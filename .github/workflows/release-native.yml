@@ -19,6 +19,9 @@ on:
 permissions:
   contents: write
 
+env:
+  MACOSX_DEPLOYMENT_TARGET: "11.0"
+
 jobs:
   build-linux:
     name: Build Linux
@@ -57,38 +60,39 @@ jobs:
 
   build-windows:
     name: Build Windows
-    runs-on: ubuntu-24.04
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            out: windows-amd64
+          - arch: arm64
+            out: windows-arm64
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install MinGW cross compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64-x86-64 gcc-mingw-w64-aarch64
+      - name: Set up MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
 
-      - name: Build Windows amd64
+      - name: Build
+        shell: cmd
         run: |
-          make clean
-          make -j$(nproc) amalg HOST_CC="gcc" CROSS=x86_64-w64-mingw32- TARGET_SYS=Windows
-          mkdir -p dist/windows-amd64
-          cp src/libluajit.a dist/windows-amd64/libluajit-5.1.a
-
-      - name: Build Windows arm64
-        run: |
-          make clean
-          make -j$(nproc) amalg HOST_CC="gcc" CROSS=aarch64-w64-mingw32- TARGET_SYS=Windows
-          mkdir -p dist/windows-arm64
-          cp src/libluajit.a dist/windows-arm64/libluajit-5.1.a
+          cd src
+          call msvcbuild.bat static
 
       - name: Package
+        shell: pwsh
         run: |
-          cd dist/windows-amd64 && zip -q ../../luajit-octopus-windows-amd64.zip libluajit-5.1.a
-          cd ../../
-          cd dist/windows-arm64 && zip -q ../../luajit-octopus-windows-arm64.zip libluajit-5.1.a
+          mkdir -p dist/${{ matrix.out }}
+          cp src/lua51.lib dist/${{ matrix.out }}/libluajit-5.1.a
+          cd dist/${{ matrix.out }}
+          Compress-Archive -Path libluajit-5.1.a -DestinationPath ../../luajit-octopus-${{ matrix.out }}.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-artifacts
+          name: windows-artifacts-${{ matrix.out }}
           path: luajit-octopus-windows-*.zip
 
   build-macos:
@@ -111,8 +115,7 @@ jobs:
           mkdir -p dist/darwin-arm64
           cp src/libluajit.a dist/darwin-arm64/libluajit-5.1.a
 
-      - name: Create Universal Library
-        run: |
+          # universal
           mkdir -p dist/darwin-universal
           lipo -create -output dist/darwin-universal/libluajit-5.1.a dist/darwin-amd64/libluajit-5.1.a dist/darwin-arm64/libluajit-5.1.a
 
@@ -143,7 +146,7 @@ jobs:
         run: |
           NDKBIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
           make clean
-          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android CC="$NDKBIN/aarch64-linux-android31-clang" CROSS="$NDKBIN/llvm-"
+          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android TARGET_CC="$NDKBIN/aarch64-linux-android31-clang" TARGET_AR="$NDKBIN/llvm-ar" TARGET_STRIP="$NDKBIN/llvm-strip"
           mkdir -p dist/android-arm64
           cp src/libluajit.a dist/android-arm64/libluajit-5.1.a
 
@@ -151,7 +154,7 @@ jobs:
         run: |
           NDKBIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
           make clean
-          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android CC="$NDKBIN/x86_64-linux-android31-clang" CROSS="$NDKBIN/llvm-"
+          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android TARGET_CC="$NDKBIN/x86_64-linux-android31-clang" TARGET_AR="$NDKBIN/llvm-ar" TARGET_STRIP="$NDKBIN/llvm-strip"
           mkdir -p dist/android-amd64
           cp src/libluajit.a dist/android-amd64/libluajit-5.1.a
 
