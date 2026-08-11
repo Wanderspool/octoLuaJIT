@@ -141,7 +141,7 @@ jobs:
         run: |
           NDKBIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
           make clean
-          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android TARGET_CC="$NDKBIN/aarch64-linux-android31-clang" TARGET_AS="$NDKBIN/aarch64-linux-android31-clang -c" TARGET_AR="$NDKBIN/llvm-ar rcus" TARGET_STRIP="$NDKBIN/llvm-strip" TARGET_FLAGS="-target aarch64-linux-android31"
+          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android CC="$NDKBIN/aarch64-linux-android31-clang" TARGET_AR="$NDKBIN/llvm-ar rcus" TARGET_STRIP="$NDKBIN/llvm-strip" TARGET_FLAGS="-target aarch64-linux-android31"
           mkdir -p dist/android-arm64
           cp src/libluajit.a dist/android-arm64/libluajit-5.1.a
 
@@ -149,7 +149,7 @@ jobs:
         run: |
           NDKBIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin
           make clean
-          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android TARGET_CC="$NDKBIN/x86_64-linux-android31-clang" TARGET_AS="$NDKBIN/x86_64-linux-android31-clang -c" TARGET_AR="$NDKBIN/llvm-ar rcus" TARGET_STRIP="$NDKBIN/llvm-strip" TARGET_FLAGS="-target x86_64-linux-android31"
+          make -j$(nproc) amalg HOST_CC="gcc" TARGET_SYS=Android CC="$NDKBIN/x86_64-linux-android31-clang" TARGET_AR="$NDKBIN/llvm-ar rcus" TARGET_STRIP="$NDKBIN/llvm-strip" TARGET_FLAGS="-target x86_64-linux-android31"
           mkdir -p dist/android-amd64
           cp src/libluajit.a dist/android-amd64/libluajit-5.1.a
 
