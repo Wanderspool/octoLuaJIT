@@ -106,14 +106,14 @@ jobs:
       - name: Build macOS arm64
         run: |
           make clean
-          make -j3 amalg TARGET_FLAGS="-arch arm64" HOST_CC="gcc -arch arm64" TARGET_SYS=Darwin
+          make -j3 amalg TARGET_FLAGS="-arch arm64" HOST_CC="clang" TARGET_SYS=Darwin
           mkdir -p dist/darwin-arm64
           cp src/libluajit.a dist/darwin-arm64/libluajit-5.1.a
 
       - name: Build macOS amd64
         run: |
           make clean
-          make -j3 amalg TARGET_FLAGS="-arch x86_64" HOST_CC="gcc -arch x86_64" TARGET_SYS=Darwin
+          make -j3 amalg TARGET_FLAGS="-arch x86_64" HOST_CC="clang" TARGET_SYS=Darwin
           mkdir -p dist/darwin-amd64
           cp src/libluajit.a dist/darwin-amd64/libluajit-5.1.a
 
@@ -182,7 +182,7 @@ jobs:
         run: |
           SDKPATH=$(xcrun --sdk iphoneos --show-sdk-path)
           make clean
-          make -j3 amalg HOST_CC="gcc" TARGET_SYS=iOS CC="clang -target arm64-apple-ios11.0 -isysroot $SDKPATH"
+          make -j3 amalg HOST_CC="clang" TARGET_SYS=iOS TARGET_FLAGS="-arch arm64 -isysroot $SDKPATH -miphoneos-version-min=11.0"
           mkdir -p dist/ios-arm64
           cp src/libluajit.a dist/ios-arm64/libluajit-5.1.a
 
@@ -190,7 +190,7 @@ jobs:
         run: |
           SDKPATH=$(xcrun --sdk iphonesimulator --show-sdk-path)
           make clean
-          make -j3 amalg HOST_CC="gcc" TARGET_SYS=iOS CC="clang -target x86_64-apple-ios11.0-simulator -isysroot $SDKPATH"
+          make -j3 amalg HOST_CC="clang" TARGET_SYS=iOS TARGET_FLAGS="-arch x86_64 -isysroot $SDKPATH -mios-simulator-version-min=11.0"
           mkdir -p dist/ios-amd64
           cp src/libluajit.a dist/ios-amd64/libluajit-5.1.a
 
