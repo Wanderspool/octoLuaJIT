@@ -2,6 +2,8 @@ name: Build and Release LuaJIT
 
 on:
   push:
+    branches:
+      - 'v2.1'
     tags:
       - 'v*'
       - 'luajit-v*'
@@ -230,7 +232,7 @@ jobs:
         with:
           files: release/*
           draft: true
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag_name }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag_name || 'v2.1.0-octopus' }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
